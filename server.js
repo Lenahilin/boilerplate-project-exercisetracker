@@ -18,9 +18,9 @@ app.get('/', (req, res) => {
 
 /** db setup **/
 mongoose
-     .connect( process.env.MONGO_URI, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true })
-     .then(() => console.log( 'Database Connected' ))
-     .catch(err => console.log( err ));
+  .connect( process.env.MONGO_URI, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true })
+  .then(() => console.log( 'Database Connected' ))
+  .catch(err => console.log( err ));
 
 
 const userSchema = new mongoose.Schema({
@@ -32,6 +32,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+
 /** db methods **/
 const createUser = (username, done) => {
   var user = new User({username: username});
@@ -41,18 +42,31 @@ const createUser = (username, done) => {
   });
 };
 
+const getAllUsers = (filter, done)  => {
+  User.find(filter).exec((err,data) => {
+    if (err) console.error(err);
+    done(null, data)
+  })
+};
+
 /** routing **/
 /* create a new user POST username: /api/new-user */ 
 app.post('/api/new-user', (req, res) => {
-createUser(req.body.username, (err, data) => {
-  if (err) return res.json('oops something went wrong').send;
-  return res.json({username: data.username, _id: data._id}).send();
-});
+  createUser(req.body.username, (err, data) => {
+    if (err) return res.json('oops something went wrong').send;
+    return res.json({username: data.username, _id: data._id}).send();
+  });
 })
 
-// app.get('/api/users', (req, res) => {
-  
-// });
+/* get all users */
+app.get('/api/users', (req, res) => {
+  getAllUsers({}, (err, data) => {
+    if (err) return res.json('cannot get users').send();
+    // TODO: implement via cursor for better performance 
+    var result = data.map((record) => { return {username: record.username, _id: record._id}});
+    res.send(result);
+  })
+});
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)

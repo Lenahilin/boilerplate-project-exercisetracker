@@ -133,21 +133,3 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 })
-
-
-
-
-app.post('/api/exercise/add', (req, res) => {
-
-  findUser(req.userId, (err, data) => { 
-    if (err) return res.send('invalid userID');
-    return user = data;
-  });
-
-  createExercise(req.body, (err, data) => {
-    if (err) res.send('could not save the exercise');
-    return e = data;
-  });
-
-  res.send(user, e)  
-});

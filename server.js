@@ -92,6 +92,12 @@ const createExercise = (user, e, done) => {
   });
 };
 
+const getExercises = (user, done) => {
+  Exercise.find({user_id:user._id}, (err, data) => {
+    if (err) return console.error(err);
+    done(null, data);
+  })
+};
 /** routing **/
 /* create a new user POST username: /api/new-user */ 
 app.post('/api/new-user', (req, res) => {
@@ -111,23 +117,38 @@ app.get('/api/users', (req, res) => {
   })
 });
 
-// You can POST to /api/exercise/add with form data userId, description, duration, and optionally date. 
-// If no date is supplied, the current date will be used. 
-// The response returned will be the user object with the exercise fields added.
+/* You can POST to /api/exercise/add with form data userId, description, duration, and optionally date.
+   If no date is supplied, the current date will be used.
+   The response returned will be the user object with the exercise fields added. */
 app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
   if (!req.body.userId || !req.body.description || !req.body.duration) res.send('some of required data are missing');
   if (!req.body.date) req.body.date = getDate();
 
   findUser(req.body.userId, (err, data) => { 
-    if (err) return res.send('the user does not exist');
+    if (err) res.send('the user does not exist'); // TODO: find out why this doesn't work
     var user = data;
     createExercise(user, req.body, (err, data) => {
-      if (err) res.send('could not save the exercise');
+      if (err) res.send('could not save the exercise'); // TODO: find out why this doesn't work
       var e = data;
       res.send({_id: user._id, username: user.username, exercise: {description: e.description, duration: e.duration, date: e.date}}); // TODO: better date formatting
     });
   });
- 
+});
+
+/* You can make a GET request to /api/users/:_id/logs to retrieve a full exercise log of any user. 
+   The returned response will be the user object with a log array of all the exercises added. 
+   Each log item has the description, duration, and date properties. */
+app.get('/api/users/:_id/logs', (req, res) => {
+  console.log(req.params._id);
+  findUser(req.params._id, (err, data) => {
+    if (err) return res.status(404).send('user not found'); // TODO: find out why this doesn't work
+    var user = data;
+    getExercises(user, (err, data) => {
+      if (err) res.send('cannot get exercise logs');
+      console.log(user, data);
+    });
+  });
+  res.send();
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {

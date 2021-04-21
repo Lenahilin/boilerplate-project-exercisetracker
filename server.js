@@ -24,7 +24,6 @@ mongoose
 
 
 const userSchema = new mongoose.Schema({
-  // _id: mongoose.Schema.Types.ObjectId,
   username: {
     type: String,
     required: true
@@ -125,10 +124,12 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
   if (!req.body.date) req.body.date = getDate();
 
   findUser(req.body.userId, (err, data) => { 
-    if (err) res.send('the user does not exist'); // TODO: find out why this doesn't work
+    if (err) res.send('error while connecting the db');
+    if (data == null) return res.status(404).send('user not found');
+    var user = data;
     var user = data;
     createExercise(user, req.body, (err, data) => {
-      if (err) res.send('could not save the exercise'); // TODO: find out why this doesn't work
+      if (err) res.send('could not save the exercise');
       var e = data;
       res.send({_id: user._id, username: user.username, exercise: {description: e.description, duration: e.duration, date: e.date}}); // TODO: better date formatting
     });
@@ -139,9 +140,10 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
    The returned response will be the user object with a log array of all the exercises added. 
    Each log item has the description, duration, and date properties. */
 app.get('/api/users/:_id/logs', (req, res) => {
-  console.log(req.params._id);
   findUser(req.params._id, (err, data) => {
-    if (err) return res.status(404).send('user not found'); // TODO: find out why this doesn't work
+    console.log('findUser data:', data);
+    if (err) return res.send('error while connecting the db');
+    if (data == null ) return res.status(404).send('user not found');
     var user = data;
     getExercises(user, (err, data) => {
       if (err) res.send('cannot get exercise logs');
@@ -151,9 +153,15 @@ app.get('/api/users/:_id/logs', (req, res) => {
       res.send(payload);
     });
   });
-  // res.send();
 });
 
+/* You can add from, to and limit parameters to a /api/users/:_id/logs request to retrieve part of the log of any user. 
+   from and to are dates in yyyy-mm-dd format. 
+   limit is an integer of how many logs to send back. */
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 });
+
+/* TODO global: 
+        - return 400 bad request when applicable
+*/

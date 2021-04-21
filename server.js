@@ -146,11 +146,14 @@ app.get('/api/users/:_id/logs', (req, res) => {
     getExercises(user, (err, data) => {
       if (err) res.send('cannot get exercise logs');
       console.log(user, data);
+      var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+      var payload = {_id: user._id, username: user.username, log:log};
+      res.send(payload);
     });
   });
-  res.send();
+  // res.send();
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
-})
+});

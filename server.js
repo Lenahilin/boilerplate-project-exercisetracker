@@ -91,12 +91,23 @@ const createExercise = (user, e, done) => {
   });
 };
 
-const getExercises = (user, done) => {
-  Exercise.find({user_id:user._id}, (err, data) => {
+const getAllExercises = (user, done) => {
+  Exercise.find({ user_id: user._id }, (err, data) => {
     if (err) return console.error(err);
     done(null, data);
-  })
+  });
 };
+
+const getExercises = (user, from, to, limit, done) => {
+  if (limit == undefined) limit = 0;
+  Exercise.find({ user_id: user._id, date: { $gte:from, $lte:to } })
+          .limit(limit)
+          .exec((err, data) => {
+            if (err) console.error(err);
+            done(null, data);
+          });
+};
+
 /** routing **/
 /* create a new user POST username: /api/new-user */ 
 app.post('/api/new-user', (req, res) => {
@@ -138,26 +149,36 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
 
 /* You can make a GET request to /api/users/:_id/logs to retrieve a full exercise log of any user. 
    The returned response will be the user object with a log array of all the exercises added. 
-   Each log item has the description, duration, and date properties. */
+   Each log item has the description, duration, and date properties.
+   You can add from, to and limit parameters to a /api/users/:_id/logs request to retrieve part of the log of any user. 
+   from and to are dates in yyyy-mm-dd format. 
+   limit is an integer of how many logs to send back. */
 app.get('/api/users/:_id/logs', (req, res) => {
+  //TODO: paginations params validation
   findUser(req.params._id, (err, data) => {
     console.log('findUser data:', data);
     if (err) return res.send('error while connecting the db');
     if (data == null ) return res.status(404).send('user not found');
     var user = data;
-    getExercises(user, (err, data) => {
-      if (err) res.send('cannot get exercise logs');
-      console.log(user, data);
-      var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-      var payload = {_id: user._id, username: user.username, log:log};
-      res.send(payload);
-    });
+    if (req.query.from && req.query.to) {
+      getExercises(user, req.query.from, req.query.to, parseInt(req.query.limit), (err, data) => {
+        if (err) return res.send('error while connecting to the db');
+        var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+        var payload = {_id: user._id, username: user.username, log:log};
+        return res.send(payload);
+      });
+    }
+    else
+      getAllExercises(user, (err, data) => {
+        if (err) return res.send('cannot get exercise logs');
+        var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+        var payload = {_id: user._id, username: user.username, log:log};
+        res.send(payload);
+      });
   });
 });
 
-/* You can add from, to and limit parameters to a /api/users/:_id/logs request to retrieve part of the log of any user. 
-   from and to are dates in yyyy-mm-dd format. 
-   limit is an integer of how many logs to send back. */
+
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 });

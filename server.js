@@ -5,6 +5,7 @@ require('dotenv').config()
 const mongoose = require('mongoose').set('debug', true);
 const bodyParser = require('body-parser')
 const morgan = require('morgan');
+const { get } = require('mongoose');
 
 /** middleware **/
 app.use(morgan('combined'))
@@ -131,13 +132,13 @@ app.get('/api/users', (req, res) => {
    If no date is supplied, the current date will be used.
    The response returned will be the user object with the exercise fields added. */
 app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
+
   if (!req.body.userId || !req.body.description || !req.body.duration) res.send('some of required data are missing');
   if (!req.body.date) req.body.date = getDate();
 
   findUser(req.body.userId, (err, data) => { 
     if (err) res.send('error while connecting the db');
     if (data == null) return res.status(404).send('user not found');
-    var user = data;
     var user = data;
     createExercise(user, req.body, (err, data) => {
       if (err) res.send('could not save the exercise');
@@ -155,29 +156,78 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
    limit is an integer of how many logs to send back. */
 app.get('/api/users/:_id/logs', (req, res) => {
   //TODO: paginations params validation
-  findUser(req.params._id, (err, data) => {
-    console.log('findUser data:', data);
-    if (err) return res.send('error while connecting the db');
-    if (data == null ) return res.status(404).send('user not found');
-    var user = data;
-    if (req.query.from && req.query.to) {
-      getExercises(user, req.query.from, req.query.to, parseInt(req.query.limit), (err, data) => {
-        if (err) return res.send('error while connecting to the db');
-        var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-        var payload = {_id: user._id, username: user.username, log:log};
-        return res.send(payload);
-      });
-    }
-    else
-      getAllExercises(user, (err, data) => {
-        if (err) return res.send('cannot get exercise logs');
-        var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-        var payload = {_id: user._id, username: user.username, log:log};
-        res.send(payload);
-      });
+  /* callbacks */
+  // findUser(req.params._id, (err, data) => {
+  //   console.log('findUser data:', data);
+  //   if (err) return res.send('error while connecting the db');
+  //   if (data == null ) return res.status(404).send('user not found');
+  //   var user = data;
+  //   if (req.query.from && req.query.to) {
+  //     getExercises(user, req.query.from, req.query.to, parseInt(req.query.limit), (err, data) => {
+  //       if (err) return res.send('error while connecting to the db');
+  //       var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+  //       var payload = {_id: user._id, username: user.username, log:log};
+  //       return res.send(payload);
+  //     });
+  //   }
+  //   else
+  //     getAllExercises(user, (err, data) => {
+  //       if (err) return res.send('cannot get exercise logs');
+  //       var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+  //       var payload = {_id: user._id, username: user.username, log:log};
+  //       res.send(payload);
+  //     });
+  // });
+
+  /* promises */
+  let getUser = new Promise( (resolve, reject) => {
+    findUser(req.params._id, (err, user) => {
+      if (err) reject('cannot connect to the db');
+      resolve(user);
+    });
   });
+
+  let getFullLog = (user) => {
+    getAllExercises(user, (err, data) => {
+      if (err) return console.error('cannot get exercise logs');
+      // var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+      // var payload = {_id: user._id, username: user.username, log:log};
+      // res.send(payload);
+      console.log('full log: ', data);
+    });
+  };
+
+  let getLog = (user, from, to, limit) => {
+    getExercises(user, from, to, limit, (err, data) => {
+      if (err) return res.send('error while connecting to the db');
+      // var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+      // var payload = {_id: user._id, username: user.username, log:log};
+      // return res.send(payload);
+      console.log('partial log:', data);
+    });
+  };
+  var limit = 0;
+  getUser.then(limit ? user => getLog(user, from, to, limit) : user => getFullLog(user));
+  res.send();
 });
 
+/* trying out promises */
+app.get('/api/user/:id', (req, res) => {
+
+  let getUser = new Promise( (resolve, reject) => {
+    findUser(req.params.id, (err, user) => {
+      if (err) reject('cannot connect to the db');
+      resolve(user);
+    });
+  });
+
+  getUser.then(user => getAllExercises(user, (err, data) => {
+    if (err) console.error('cannot connect to the db');
+    console.log(user, data);
+  }))
+
+  res.send();
+});
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)

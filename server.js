@@ -140,7 +140,7 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
     if (err) res.send('error while connecting the db');
     if (data == null) return res.status(404).send('user not found');
     var user = data;
-    createExercise(user, req.body, (err, data) => {
+    createExercise(user, req.body, (err, data) => { // TODO: don't pass the user object, user._id is already present in req.body
       if (err) res.send('could not save the exercise');
       var e = data;
       res.send({_id: user._id, username: user.username, exercise: {description: e.description, duration: e.duration, date: e.date}}); // TODO: better date formatting
@@ -181,34 +181,62 @@ app.get('/api/users/:_id/logs', (req, res) => {
 
   /* promises */
   let getUser = new Promise( (resolve, reject) => {
+    console.log('getting the user...');
     findUser(req.params._id, (err, user) => {
-      if (err) reject('cannot connect to the db');
-      resolve(user);
+      if (err) reject(new Error('cannot connect to the db'));
+      else resolve(user);
     });
   });
 
-  let getFullLog = (user) => {
-    getAllExercises(user, (err, data) => {
-      if (err) return console.error('cannot get exercise logs');
-      // var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-      // var payload = {_id: user._id, username: user.username, log:log};
-      // res.send(payload);
-      console.log('full log: ', data);
-    });
-  };
+  function getFullLog(user) {
+    return new Promise ( (resolve, reject) => {
+      getAllExercises(user, (err, data) => {
+        if (err) reject (new Error('could not get full exercise logs'));
+        else resolve (data);
+      });
+    })
+  }
 
   let getLog = (user, from, to, limit) => {
     getExercises(user, from, to, limit, (err, data) => {
-      if (err) return res.send('error while connecting to the db');
-      // var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-      // var payload = {_id: user._id, username: user.username, log:log};
-      // return res.send(payload);
-      console.log('partial log:', data);
+      // if (err) return res.send('could not get exercise logs');
+      if (err) console.err('could not get exercise logs');
+      sendLog(user, data);
     });
   };
+
+  // let payload = (user, data) => {
+  //   console.log('creating the payload out of', user, data);
+  //   let log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+  //   let payload = {_id: user._id, username: user.username, log:log};
+  //   console.log('sending the response...');
+  //   return payload;
+  // };
+
+  function formatPayload(data) {
+    let log = data.exercises.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+    let payload = {_id: data.user._id, username: data.user.username, log:log};
+    return payload;
+  }
+
   var limit = 0;
-  getUser.then(limit ? user => getLog(user, from, to, limit) : user => getFullLog(user));
-  res.send();
+  var data = {};
+  getUser
+    .then((user) => { 
+      // if (limit) { 
+      //   return getLog(user, from, to, limit);
+      // }
+      // else return user, getFullLog(user);
+      data.user = user;
+      return getFullLog(user);
+    })
+    .then((exercises) => {
+      data.exercises = exercises;
+      console.log('data: ', data);
+      res.send(formatPayload(data));
+    })
+    .catch((err) => console.error(err));
+  // getUser.then(limit ? (user) => getLog(user, from, to, limit) : (user) => getFullLog(user)).catch(res.send('ERROR: user not found'));
 });
 
 /* trying out promises */

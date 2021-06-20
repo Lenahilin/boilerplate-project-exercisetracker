@@ -109,8 +109,36 @@ const getExercises = (user, from, to, limit, done) => {
           });
 };
 
+/** promises **/
+function getUser(id) {
+  return new Promise( (resolve, reject) => {
+    findUser(id, (err, user) => {
+      if (err) reject(new Error('cannot connect to the db'));
+      else resolve(user);
+    });
+  });
+} 
+
+function getFullLog(user) {
+  return new Promise ( (resolve, reject) => {
+    getAllExercises(user, (err, data) => {
+      if (err) reject (new Error('could not get full exercise logs'));
+      else resolve (data);
+    });
+  })
+}
+
+function formatPayload(data) {
+  let log = data.exercises.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
+  let payload = {_id: data.user._id, username: data.user.username, log:log};
+  return payload;
+}
+
+
 /** routing **/
-/* create a new user POST username: /api/new-user */ 
+
+/* create a new user 
+   POST username: /api/new-user */ 
 app.post('/api/new-user', (req, res) => {
   createUser(req.body.username, (err, data) => {
     if (err) return res.json('oops something went wrong').send;
@@ -128,7 +156,8 @@ app.get('/api/users', (req, res) => {
   })
 });
 
-/* You can POST to /api/exercise/add with form data userId, description, duration, and optionally date.
+/* add an exercise
+   You can POST to /api/exercise/add with form data userId, description, duration, and optionally date.
    If no date is supplied, the current date will be used.
    The response returned will be the user object with the exercise fields added. */
 app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
@@ -138,7 +167,7 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
 
   findUser(req.body.userId, (err, data) => { 
     if (err) res.send('error while connecting the db');
-    if (data == null) return res.status(404).send('user not found');
+    if (data == null) return res.status(400).send('no such user');
     var user = data;
     createExercise(user, req.body, (err, data) => { // TODO: don't pass the user object, user._id is already present in req.body
       if (err) res.send('could not save the exercise');
@@ -148,113 +177,44 @@ app.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
   });
 });
 
-/* You can make a GET request to /api/users/:_id/logs to retrieve a full exercise log of any user. 
+/* get a whole or a partial exercise log for a user
+   You can make a GET request to /api/users/:_id/logs to retrieve a full exercise log of any user. 
    The returned response will be the user object with a log array of all the exercises added. 
    Each log item has the description, duration, and date properties.
    You can add from, to and limit parameters to a /api/users/:_id/logs request to retrieve part of the log of any user. 
-   from and to are dates in yyyy-mm-dd format. 
+   'from' and 'to' are dates in yyyy-mm-dd format. 
    limit is an integer of how many logs to send back. */
 app.get('/api/users/:_id/logs', (req, res) => {
   //TODO: paginations params validation
-  /* callbacks */
-  // findUser(req.params._id, (err, data) => {
-  //   console.log('findUser data:', data);
-  //   if (err) return res.send('error while connecting the db');
-  //   if (data == null ) return res.status(404).send('user not found');
-  //   var user = data;
-  //   if (req.query.from && req.query.to) {
-  //     getExercises(user, req.query.from, req.query.to, parseInt(req.query.limit), (err, data) => {
-  //       if (err) return res.send('error while connecting to the db');
-  //       var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-  //       var payload = {_id: user._id, username: user.username, log:log};
-  //       return res.send(payload);
-  //     });
-  //   }
-  //   else
-  //     getAllExercises(user, (err, data) => {
-  //       if (err) return res.send('cannot get exercise logs');
-  //       var log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-  //       var payload = {_id: user._id, username: user.username, log:log};
-  //       res.send(payload);
-  //     });
-  // });
 
-  /* promises */
-  let getUser = new Promise( (resolve, reject) => {
-    console.log('getting the user...');
-    findUser(req.params._id, (err, user) => {
-      if (err) reject(new Error('cannot connect to the db'));
-      else resolve(user);
-    });
-  });
-
-  function getFullLog(user) {
-    return new Promise ( (resolve, reject) => {
-      getAllExercises(user, (err, data) => {
-        if (err) reject (new Error('could not get full exercise logs'));
-        else resolve (data);
-      });
+  function getPartialLog(user, from, to, limit) {
+    return new Promise((resolve, reject) => {
+      getExercises(user, from, to, limit, (err, data) => {
+        if (err) reject (new Error('could not fetch partial exercise logs'));
+        else resolve(data);
+      })
     })
   }
 
-  let getLog = (user, from, to, limit) => {
-    getExercises(user, from, to, limit, (err, data) => {
-      // if (err) return res.send('could not get exercise logs');
-      if (err) console.err('could not get exercise logs');
-      sendLog(user, data);
-    });
-  };
-
-  // let payload = (user, data) => {
-  //   console.log('creating the payload out of', user, data);
-  //   let log = data.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-  //   let payload = {_id: user._id, username: user.username, log:log};
-  //   console.log('sending the response...');
-  //   return payload;
-  // };
-
-  function formatPayload(data) {
-    let log = data.exercises.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
-    let payload = {_id: data.user._id, username: data.user.username, log:log};
-    return payload;
+  /* input validation */
+  if (req.query.limit != undefined && (req.query.limit <= 0 || !req.query.limit.isInteger())) {
+    return res.status(400).send('bad request, limit must be a positive integer');
   }
 
-  var limit = 0;
   var data = {};
-  getUser
+  getUser(req.params._id)
     .then((user) => { 
-      // if (limit) { 
-      //   return getLog(user, from, to, limit);
-      // }
-      // else return user, getFullLog(user);
       data.user = user;
-      return getFullLog(user);
+      if (req.query.limit != undefined) {
+        var limit = parseInt(req.query.limit);
+        return getPartialLog(user, req.query.from, req.query.to, limit);
+      } else return getFullLog(user);
     })
     .then((exercises) => {
       data.exercises = exercises;
-      console.log('data: ', data);
       res.send(formatPayload(data));
     })
     .catch((err) => console.error(err));
-  // getUser.then(limit ? (user) => getLog(user, from, to, limit) : (user) => getFullLog(user)).catch(res.send('ERROR: user not found'));
-});
-
-/* trying out promises */
-app.get('/api/user/:id', (req, res) => {
-
-  let getUser = new Promise( (resolve, reject) => {
-    findUser(req.params.id, (err, user) => {
-      if (err) reject('cannot connect to the db');
-      resolve(user);
-    });
-  });
-
-  getUser.then(user => getAllExercises(user, (err, data) => {
-    if (err) console.error('cannot connect to the db');
-    console.log(user, data);
-  }))
-
-  res.send();
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {

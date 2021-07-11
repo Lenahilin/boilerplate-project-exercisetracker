@@ -1,4 +1,4 @@
-const getDate = () => { // yyyy-mm-dd
+function getDate() { // yyyy-mm-dd
   let date = new Date();
   let y = date.getFullYear().toString();
   let m = date.getMonth() + 1;
@@ -30,3 +30,10 @@ function formatPayload(data) {
   let payload = {_id: data.user._id, username: data.user.username, log:log};
   return payload;
 }
+
+module.exports = {
+  getDate,
+  getUser,
+  getFullLog,
+  formatPayload
+};

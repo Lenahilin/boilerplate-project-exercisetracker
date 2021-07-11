@@ -1,7 +1,9 @@
 var express = require('express');
 const path = require('path');
 
-const {createUser, findUser, getAllUsers} = require ('../models/user');
+const {createUser, findUser, getAllUsers} = require('../models/user');
+const {createExercise, getAllExercises, getExercises} = require('../models/exercise');
+const {getDate, getUser, getFullLog, formatPayload} = require('./logic');
 
 var router = express.Router();
 

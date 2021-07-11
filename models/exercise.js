@@ -42,9 +42,8 @@ const getExercises = (user, from, to, limit, done) => {
 };
 
 const Exercise = mongoose.model('Exercise', exerciseSchema);
-// module.exports = Exercise;
-module.exports = createExercise;
-module.exports = getAllExercises;
-module.exports = getExercises;
-
-
+module.exports = {
+  createExercise,
+  getAllExercises,
+  getExercises
+};

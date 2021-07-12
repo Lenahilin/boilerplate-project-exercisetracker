@@ -1,9 +1,9 @@
 var express = require('express');
 const path = require('path');
 
-const {createUser, findUser, getAllUsers} = require('../models/user');
-const {createExercise, getAllExercises, getExercises} = require('../models/exercise');
-const {getDate, getUser, getFullLog, formatPayload} = require('./logic');
+const { createUser, findUser } = require('../models/user');
+const { createExercise } = require('../models/exercise');
+const { getDate, getUser, getAllUsers, getFullLog, getPartialLog, formatPayload } = require('./logic');
 
 var router = express.Router();
 
@@ -13,26 +13,27 @@ router.get('/', (req, res) => {
 
 router.post('/api/new-user', (req, res) => {
   createUser(req.body.username, (err, data) => {
-    if (err) return res.json('oops something went wrong').send;
+    if (err) return res.status(500).send('cannot create user');
     return res.json({username: data.username, _id: data._id}).send();
   });
 })
 
 /* get all users */
 router.get('/api/users', (req, res) => {
-  getAllUsers({}, (err, data) => {
-    if (err) return res.json('cannot get users').send();
-    // TODO: implement via cursor for better performance 
-    var result = data.map((record) => { return {username: record.username, _id: record._id}});
-    res.send(result);
-  })
+  getAllUsers()
+    .then((users) => {
+      var result = users.map((u) => { return {username: u.username, _id: u._id}});
+      res.send(result);
+    })
+    .catch((err) => console.error(err));
 });
 
 /* add an exercise
    You can POST to /api/exercise/add with form data userId, description, duration, and optionally date.
    If no date is supplied, the current date will be used.
    The response returned will be the user object with the exercise fields added. */
-router.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
+//TODO: rewrite with promises
+router.post('/api/exercise/add', (req, res) => {
 
   if (!req.body.userId || !req.body.description || !req.body.duration) res.send('some of required data are missing');
   if (!req.body.date) req.body.date = getDate();
@@ -56,19 +57,11 @@ router.post('/api/exercise/add', (req, res) => { // /api/users/:_id/exercises
    You can add from, to and limit parameters to a /api/users/:_id/logs request to retrieve part of the log of any user. 
    'from' and 'to' are dates in yyyy-mm-dd format, limit is an integer of how many logs to send back. */
 router.get('/api/users/:_id/logs', (req, res) => {
-  //TODO: paginations params validation
-
-  function getPartialLog(user, from, to, limit) {
-    return new Promise((resolve, reject) => {
-      getExercises(user, from, to, limit, (err, data) => {
-        if (err) reject (new Error('could not fetch partial exercise logs'));
-        else resolve(data);
-      })
-    })
-  }
+  //TODO: from/to params validation
 
   /* input validation */
-  if (req.query.limit != undefined && (req.query.limit <= 0 || !req.query.limit.isInteger())) {
+  var limit = Number(req.query.limit);
+  if (req.query.limit != undefined && (!Number.isInteger(limit) || limit <= 0)) {
     return res.status(400).send('bad request, limit must be a positive integer');
   }
 
@@ -76,10 +69,8 @@ router.get('/api/users/:_id/logs', (req, res) => {
   getUser(req.params._id)
     .then((user) => { 
       data.user = user;
-      if (req.query.limit != undefined) {
-        var limit = parseInt(req.query.limit);
-        return getPartialLog(user, req.query.from, req.query.to, limit);
-      } else return getFullLog(user);
+      if (req.query.limit != undefined) return getPartialLog(user, req.query.from, req.query.to, limit);
+      else return getFullLog(user);
     })
     .then((exercises) => {
       data.exercises = exercises;

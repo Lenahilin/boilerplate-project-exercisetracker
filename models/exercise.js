@@ -16,7 +16,7 @@ const exerciseSchema = new mongoose.Schema({
   date: Date
 });
 
-const createExercise = (user, e, done) => {
+const createExercise = (e, done) => {
   var exercise = new Exercise({user_id: e.userId, description: e.description, duration: e.duration, date: e.date});
   exercise.save( (err, data) => {
     if (err) console.error(err);

@@ -24,7 +24,7 @@ const findUser = (id, done) => {
   });
 };
 
-const getAllUsers = (filter, done)  => {
+const findManyUsers = (filter, done)  => {
   User.find(filter).exec((err,data) => {
     if (err) console.error(err);
     done(null, data)
@@ -34,5 +34,5 @@ const getAllUsers = (filter, done)  => {
 module.exports = {
   createUser,
   findUser,
-  getAllUsers
+  findManyUsers
 };

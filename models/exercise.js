@@ -16,7 +16,7 @@ const exerciseSchema = new mongoose.Schema({
   date: Date
 });
 
-const createExercise = (e, done) => {
+const saveExercise = (e, done) => {
   var exercise = new Exercise({user_id: e.userId, description: e.description, duration: e.duration, date: e.date});
   exercise.save( (err, data) => {
     if (err) console.error(err);
@@ -43,7 +43,7 @@ const getExercises = (user, from, to, limit, done) => {
 
 const Exercise = mongoose.model('Exercise', exerciseSchema);
 module.exports = {
-  createExercise,
+  saveExercise,
   getAllExercises,
   getExercises
 };

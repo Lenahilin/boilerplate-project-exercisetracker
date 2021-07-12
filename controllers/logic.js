@@ -1,5 +1,5 @@
-const { findUser, findManyUsers } = require('../models/user');
-const { getAllExercises, getExercises } = require('../models/exercise');
+const { findUser, findManyUsers, createUser } = require('../models/user');
+const { saveExercise, getAllExercises, getExercises } = require('../models/exercise');
 
 function getDate() { // yyyy-mm-dd
   let date = new Date();
@@ -46,6 +46,15 @@ function getPartialLog(user, from, to, limit) {
   });
 }
 
+function createExercise(exercise) {
+  return new Promise ((resolve, reject) => {
+    saveExercise(exercise, (err, data) => {
+      if (err) reject (new Error('cannot save the exercise'));
+      else resolve (data);
+    });
+  });
+}
+
 function formatPayload(data) {
   let log = data.exercises.map((e) => {return {description: e.description, duration: e.duration, date: e.date}});
   let payload = {_id: data.user._id, username: data.user.username, log:log};
@@ -58,5 +67,6 @@ module.exports = {
   getAllUsers,
   getFullLog,
   getPartialLog,
+  createExercise,
   formatPayload
 };

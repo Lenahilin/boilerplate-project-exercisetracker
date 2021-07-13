@@ -1,4 +1,4 @@
-const { findUser, findManyUsers, createUser } = require('../models/user');
+const { findUser, findManyUsers } = require('../models/user');
 const { saveExercise, getAllExercises, getExercises } = require('../models/exercise');
 
 function getDate() { // yyyy-mm-dd
